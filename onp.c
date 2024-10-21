@@ -40,10 +40,8 @@ struct onp_context {
   size_t m;
   size_t n;
 
-  size_t fplen;
+  size_t fppathlen;
   size_t *fp;
-
-  size_t pathlen;
   size_t *path;
 
   size_t xyrlen;
@@ -75,9 +73,6 @@ void onp_destroy(struct onp_context **const ctxp) {
   struct onp_context *const ctx = *ctxp;
   if (ctx->fp) {
     ctx->free(ctx->fp, ctx->params->userdata);
-  }
-  if (ctx->path) {
-    ctx->free(ctx->path, ctx->params->userdata);
   }
   if (ctx->xyr) {
     ctx->free(ctx->xyr, ctx->params->userdata);
@@ -220,34 +215,20 @@ size_t onp_calc_distance(struct onp_context **const ctxp, struct onp_params cons
   size_t const delta = ctx->n - ctx->m;
   size_t const fplen = ctx->m + ctx->n + 3;
 
-  if (ctx->fplen < fplen) {
-    if (!grow(ctx, &ctx->fp, fplen * sizeof(*ctx->fp))) {
+  size_t const fppathlen = fplen + (ctx->params->ses ? fplen : 0);
+  if (ctx->fppathlen < fppathlen) {
+    if (!grow(ctx, &ctx->fp, fppathlen * sizeof(*ctx->fp))) {
       return SIZE_MAX;
     }
-    ctx->fplen = fplen;
+    ctx->fppathlen = fppathlen;
   }
   size_t *const fp = ctx->fp;
-
-  if (ctx->params->ses) {
-    if (ctx->pathlen < fplen) {
-      if (!grow(ctx, &ctx->path, fplen * sizeof(*ctx->path))) {
-        return SIZE_MAX;
-      }
-      ctx->pathlen = fplen;
-    }
-    ctx->xyrlen = 0;
-
-    size_t *const path = ctx->path;
-    for (size_t i = 0; i < fplen; ++i) {
-      fp[i] = SIZE_MAX;
-      path[i] = SIZE_MAX;
-    }
-  } else {
-    for (size_t i = 0; i < fplen; ++i) {
-      fp[i] = SIZE_MAX;
-    }
+  for (size_t i = 0; i < fppathlen; ++i) {
+    fp[i] = SIZE_MAX;
   }
 
+  ctx->path = fp + fplen;
+  ctx->xyrlen = 0;
   for (size_t p = 0;; ++p) {
     // -p <= k <= delta - 1
     for (size_t k = 0; k <= p + delta - 1; ++k) {
